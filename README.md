@@ -16,14 +16,14 @@ import bayesian-nn as bnn
 ## How are Bayesian neural nets trained with SVI?
 ![](assets/bbb_demo.gif)
 
-Bayesian neural networks are just like ordinary neural networks except that weights are given explicit prior distributions, and the inferred posterior distributions given the data are used to make predictions on new data points. In addition to help avoid overfitting, Bayesian neural nets also give predictive uncertainty.
+Bayesian neural networks are just like ordinary neural networks except that weights are given an explicit prior distribution, and the inferred posterior distribution given the training data is used to make predictions on new data. In addition to help avoid overfitting, Bayesian neural nets also give predictive uncertainty.
 
 When making predictions, the model takes in account all weight configurations, which could be approximated through Monte Carlo.
 
-The posterior distributions of the weights could be approximated through variational inference, where the evidence/variational lower bound (or negative variational free energy) is optimized so that the KL-divergence between the approximate and true posterior is minimized.
+The posterior distribution of the weights could be approximated through variational inference, where the evidence/variational lower bound (or negative variational free energy) is optimized so that the KL-divergence between the approximate and true posterior is minimized.
 
 ## Layers
-bayesian-nn primarily provides the user with the flexibility of stacking neural net layers where weights follow approximate posterior distributions.
+bayesian-nn primarily provides the user with the flexibility of stacking neural net layers where weights follow an approximate posterior distribution.
 
 Pre-implemented layers include:
 
