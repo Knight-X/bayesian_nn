@@ -37,19 +37,19 @@ RNN | [bnn.rnn]()
 Toy example of a 2-layer (excluding input layer) Bayesian neural net for 1D regression:
 
 ```python
-x = tf.placeholder(dtype=tf.float32, shape=[None, 1])  # input
-y = tf.placeholder(dtype=tf.float32, shape=[None, 1])  # output
+x = tf.placeholder(dtype=tf.float32, shape=[None, 1])                   # input
+y = tf.placeholder(dtype=tf.float32, shape=[None, 1])                   # output
 
-net, kl_1 = bnn.fully_connected(x,   10, activation_fn=tf.nn.relu)
-net, kl_2 = bnn.fully_connected(net, 1,  activation_fn=None)
+net, kl_1 = bnn.fully_connected(x,   10, activation_fn=tf.nn.relu)      # hidden layer with 10 units
+net, kl_2 = bnn.fully_connected(net, 1,  activation_fn=None)            # output layer
 
-elbo = -tf.reduce_sum((y - net) ** 2)  - kl_1 - kl_2
+elbo = - tf.reduce_sum((y - net) ** 2)  - kl_1 - kl_2                   # define evidence lower bound
 
 train_op = tf.train.AdamOptimizer(learning_rate).minimize(-elbo)
 ...
 ```
 
-In the above example, kl_1 and kl_2 are the KL divergences between the approximate posterior distribution and prior distribution divided by the number of data points in batch for the hidden layer and output layer respectively. 
+In the above example, kl_1 and kl_2 are the KL divergences between the approximate posterior distribution and prior distribution for the input-to-hidden and hidden-to-output weights respectively. 
 
 ## Features
 The user can also further simplify boilerplate code through the following side features:
