@@ -2,83 +2,140 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-import numpy as np
-from tensorflow.contrib.distributions import Normal
-from tensorflow.contrib.layers import xavier_initializer
+import functools
+import os
+import six
 
-xi = xavier_initializer
-ni = tf.random_normal_initializer
-eps = 1e-35  # small epsilon avoid -inf
+from utils import analytical_kl
+from tensorflow.contrib.framework.python.ops import add_arg_scope
+from tensorflow.contrib.layers.python.layers import initializers
+from tensorflow.python.framework import ops
+from tensorflow.python.ops import init_ops
+from tensorflow.python.ops import variable_scope
+from tensorflow.contrib.layers.python.layers import utils
+import tensorflow.contrib.distributions as distributions
+
+__all__ = ['fully_connected']
 
 
-def gaussian_layer(x,
-                   in_dim,
-                   out_dim,
-                   scope,
-                   activation_fn=tf.nn.relu,
-                   reuse=False,
-                   use_mean=False,
-                   store=False,
-                   use_stored=False,
-                   prior_stddev=1.0,
-                   l2_const=0.0):
-    """Single layer of fully-connected units where the weights follow a
+def _build_variable_getter(rename=None):
+    """Build a model variable getter that respects scope getter and renames."""
+    # VariableScope will nest the getters
+    def layer_variable_getter(getter, *args, **kwargs):
+        kwargs['rename'] = rename
+        return _model_variable_getter(getter, *args, **kwargs)
+    return layer_variable_getter
+
+
+def _add_variable_to_collections(variable, collections_set, collections_name):
+    """Adds variable (or all its parts) to all collections with that name."""
+    collections = utils.get_variable_collections(
+        collections_set, collections_name) or []
+    variables_list = [variable]
+    if isinstance(variable, tf_variables.PartitionedVariable):
+        variables_list = [v for v in variable]
+    for collection in collections:
+        for var in variables_list:
+            if var not in ops.get_collection(collection):
+                ops.add_to_collection(collection, var)
+
+
+@add_arg_scope
+def fully_connected(inputs,
+                    num_outputs,
+                    posterior_sampler=None,
+                    log_q=None,
+                    log_p=None,
+                    activation_fn=tf.nn.relu,
+                    normalizer_fn=None,
+                    normalizer_params=None,
+                    weights_initializer=initializers.xavier_initializer(),
+                    weights_regularizer=None,
+                    biases_initializer=init_ops.zeros_initializer(),
+                    biases_regularizer=None,
+                    reuse=None,
+                    variables_collections=None,
+                    outputs_collections=None,
+                    trainable=True,
+                    scope=None):
+    """Adds a fully connected layer to a Bayesian neural net.
+
+    Single layer of fully-connected units where the weights follow a
     unit gaussian prior, and
+
     Args:
-        x: batch of input
-        in_dim: input dimension
-        out_dim: output dimension
-        scope: tensorflow variable scope name
-        activation_fn: activation function
-        use_mean: use the mean of approximate posterior, instead of sampling
-        closed_form_kl: return closed form kl
+        inputs: A tensor of at least rank 2 and static value for the last
+            dimension; i.e. `[batch_size, depth]`,
+            `[None, None, None, channels]`.
+        num_outputs: Integer or long, the number of output units in the layer.
+        posterior_sampler: Object to sample a weight matrix from the
+            approximate posterior distribution by calling method
+            `posterior_sampler.sample()`. Use default setting when object is
+            None.
+        log_q: Function that returns a tensor of batch log-probabilities
+            of the approximate posterior given at the sample.
+        log_p: Function that returns a tensor of batch log-probabilities
+            of the prior given at the sample.
+        activation_fn: Activation function. The default value is a ReLU
+            function. Explicitly set it to None to skip it and maintain a
+            linear activation.
+        scope: Optional scope for variable_scope.
+
     Returns:
-        output and kl of the weights for the layer
+       The tensor variable representing the result of the series of operations.
+
+    Raises:
+        ValueError: If x has rank less than 2 or if its last dimension is not
+                    set.
     """
 
-    prior_var = prior_stddev ** 2
+    if not isinstance(num_outputs, six.integer_types):
+        raise ValueError(
+            'num_outputs should be int or long, got %s.' % (num_outputs,))
 
-    with tf.variable_scope(scope, reuse=reuse):
+    with variable_scope.variable_scope(
+            scope, 'fully_connected', [inputs],
+            reuse=reuse, custom_getter=layer_variable_getter) as sc:
 
-        w_mean = tf.get_variable('w_mean', shape=[in_dim, out_dim], initializer=xi())
-        w_row = tf.get_variable('w_row', shape=[in_dim, out_dim], initializer=ni(-3.0, 0.1))
-        w_stddev = tf.nn.softplus(w_row, name='w_std') + eps
-        w_dist = Normal([0.0]*in_dim*out_dim, [1.0]*in_dim*out_dim)
-        w_std_sample = tf.reshape(w_dist.sample(), [in_dim, out_dim], name='w_std_sample')
+        inputs = ops.convert_to_tensor(inputs)
 
-        # local reparametrization
-        w_sample = w_mean + w_std_sample * w_stddev
-        b = tf.get_variable('b', shape=[out_dim], dtype=tf.float32, initializer=xi())
+        # TODO: create layer class for bayesian neural net
 
-        # to store the previous theta value
-        w_last = tf.get_variable('w_last', initializer=tf.zeros([in_dim, out_dim]), trainable=False)
+        if posterior_sampler is None:
+            num_inputs = tf.shape(inputs)[1]
+            unit_normal = distributions.Normal(0., 1.)
 
-        if use_mean:
-            out = activation_fn(tf.matmul(x, w_mean) + b, name='activation')
-            return out, 0.0
+            mean = tf.get_variable('mean', shape=[num_inputs, num_outputs],
+                                   initializer=weights_initializer)
+            rho = tf.get_variable('rho', shape=[num_inputs, num_outputs],
+                                  initializer=weights_initializer)
+            stddev = tf.nn.softplus(rho)
+            sample = mean + stddev * \
+                unit_normal.sample([num_inputs, num_outputs])
+            kl = log_normal(mean, stddev, sample) - log_p(sample)
         else:
-            if store:
-                store_op = tf.assign(w_last, w_sample)
-                with tf.control_dependencies([store_op]):
-                    out = activation_fn(tf.matmul(x, w_sample) + b, name='activation')
-            else:
-                if use_stored:
-                    out = activation_fn(tf.matmul(x, w_last) + b, name='activation')
-                else:
-                    out = activation_fn(tf.matmul(x, w_sample) + b, name='activation')
+            sample = posterior_sampler.sample()
+            kl = log_q(sample) - log_p(sample)
 
-            D = in_dim * out_dim
-            kl = tf.log(prior_stddev) * D - \
-                 tf.reduce_sum(tf.log(w_stddev+eps)) + \
-                 0.5*(-D +
-                     (tf.reduce_sum(w_stddev**2) +
-                      tf.reduce_sum(w_mean**2)) / prior_var)
-            return out, kl
+        biases = tf.get_variable('biases', shape=[num_outputs],
+                                 initializer=biases_initializer)
+        outputs = inputs * sample + biases
 
+    # Add variables to collections.
+    _add_variable_to_collections(layer.kernel, variables_collections,
+                                 'weights')
+    if layer.bias is not None:
+        _add_variable_to_collections(layer.bias, variables_collections,
+                                     'biases')
 
-def main():
-    pass
+    # Apply normalizer function / layer.
+    if normalizer_fn is not None:
+        if not normalizer_params:
+            normalizer_params = {}
+        outputs = normalizer_fn(outputs, **normalizer_params)
 
-if __name__ == '__main__':
-    main()
+    if activation_fn is not None:
+        outputs = activation_fn(outputs)
+
+    return utils.collect_named_outputs(
+        outputs_collections, sc.original_name_scope, outputs)
