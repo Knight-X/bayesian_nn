@@ -6,6 +6,8 @@ import functools
 import os
 import six
 
+import numpy as np
+
 import tensorflow as tf
 from tensorflow.contrib.distributions import Normal
 
@@ -40,8 +42,9 @@ class FactorizedGaussian(AbstractDistribution):
 
         if 'prior_std' in kwargs:
             self.is_prior = True
-            self.prior_mean = kwargs['prior_mean']
-            self.prior_std = kwargs['prior_std']
+            self.prior_mean = kwargs['prior_mean'] if 'prior_mean' in kwargs else 0.
+            self.prior_std = kwargs['prior_std'] if 'prior_std' in kwargs else 1.
+
             if not self.prior_std > 0.:
                 raise ValueError('Standard deviation should be greater than 0')
 
@@ -52,10 +55,12 @@ class FactorizedGaussian(AbstractDistribution):
         if self.is_prior:
             raise Exception('Prior distribution should not be sampled from')
 
-        self.mean = tf.Variable(tf.random_normal(shape=self.size, mean=0., stddev=0.1))
-        self.log_std = tf.Variable(tf.random_normal(shape=self.size, mean=-3., stddev=0.1))
+        self.mean = tf.Variable(tf.random_normal(
+            shape=self.size, mean=0., stddev=0.1))
+        self.log_std = tf.Variable(tf.random_normal(
+            shape=self.size, mean=-3., stddev=0.1))
 
-        eps = Normal(0., 1.).sample(self.size
+        eps = Normal(0., 1.).sample(self.size)
         self.sample = tf.multiply(tf.exp(self.log_std), eps) + self.mean
 
     def log_prob(self, weights):
@@ -68,8 +73,8 @@ class FactorizedGaussian(AbstractDistribution):
             mean = self.mean
             log_std = self.log_std
 
-        ret = -(.5*tf.exp(-2*log_sd)) * (weights-mean)**2 - log_std + const
-        ret = tf.reduce_sum(ret, axis=1)
+        ret = -(.5*tf.exp(-2*log_std)) * (weights-mean)**2 - log_std + const
+        ret = tf.reduce_sum(ret)
 
         return ret
 

@@ -40,7 +40,7 @@ class Dense:
             self.prior = kwargs['prior']
             self.posterior = kwargs['posterior']
             self.inference_type = 'bayesian'  # bayesian approx. inference
-            self.weights = posterior.sample
+            self.weights = self.posterior.sample
 
         elif 'prior' in kwargs:
             self.prior = prior

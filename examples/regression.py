@@ -21,7 +21,7 @@ def build_toy_data(num=100):
         return -0.9 * x**2 + 1.9 * x + 1.
 
     xs = [[npr.rand()] for _ in range(num)]
-    ys = [[f(x)] x in xs]
+    ys = [[f(x)] for x in xs]
 
     return np.array(xs), np.array(ys)
 
