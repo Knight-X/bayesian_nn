@@ -7,6 +7,7 @@ import os
 import six
 
 import tensorflow as tf
+from tensorflow.contrib.distributions import Normal
 
 
 class AbstractDistribution:
@@ -30,8 +31,47 @@ class AbstractDistribution:
 class FactorizedGaussian(AbstractDistribution):
     """Factorized Gaussian distribution for a layer of weights."""
 
-    def __init__(self, in_dims, ou_dims):
-        pass
+    def __init__(self, in_dims, ou_dims, **kwargs):
+
+        self.in_dims = in_dims
+        self.ou_dims = ou_dims
+        self.size = [in_dims, ou_dims]
+        self.is_prior = False
+
+        if 'prior_std' in kwargs:
+            self.is_prior = True
+            self.prior_mean = kwargs['prior_mean']
+            self.prior_std = kwargs['prior_std']
+            if not self.prior_std > 0.:
+                raise ValueError('Standard deviation should be greater than 0')
+
+        self.build_weights()
+
+    def build_weights(self):
+
+        if self.is_prior:
+            raise Exception('Prior distribution should not be sampled from')
+
+        self.mean = tf.Variable(tf.random_normal(shape=self.size, mean=0., stddev=0.1))
+        self.log_std = tf.Variable(tf.random_normal(shape=self.size, mean=-3., stddev=0.1))
+
+        eps = Normal(0., 1.).sample(self.size
+        self.sample = tf.multiply(tf.exp(self.log_std), eps) + self.mean
+
+    def log_prob(self, weights):
+
+        const = -0.5*tf.log(2.*np.pi)
+
+        if self.is_prior:
+            mean, log_std = self.prior_mean, np.log(self.log_std)
+        else:
+            mean = self.mean
+            log_std = self.log_std
+
+        ret = -(.5*tf.exp(-2*log_sd)) * (weights-mean)**2 - log_std + const
+        ret = tf.reduce_sum(ret, axis=1)
+
+        return ret
 
 
 class MatrixVariateGaussian(AbstractDistribution):
