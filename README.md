@@ -70,8 +70,8 @@ To achieve this we only need specify different distributions.
 fc_1 = Dense('fc_1', 100, 100, prior=GroupHorseShoe(), posterior=FactorizedGaussian())
 fc_2 = Dense('fc_2', 100, 1, prior=GroupHorseShoe(), posterior=FactorizedGaussian())
 
-h, kl_1 = tf.nn.relu(fc_1(x))
-p, kl_2 = fc_2(h)
+h, kl_1 = fc_1(x)
+p, kl_2 = fc_2(tf.nn.relu(h))
 
 elbo = - tf.reduce_sum((y - p) ** 2)  - kl_1 - kl_2               # evidence lower bound
 
