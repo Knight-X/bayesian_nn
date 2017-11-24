@@ -1,12 +1,12 @@
-# bayesian-nn
-bayesian-nn is a lightweight [*Bayesian neural network*]() library built on top of tensorflow to ease network training via 
+# bayesian_nn
+bayesian_nn is a lightweight [*Bayesian neural network*]() library built on top of tensorflow to ease network training via 
 [*variational inference* (VI)](https://en.wikipedia.org/wiki/Variational_Bayesian_methods). The library is intended to resemble [slim](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/contrib/slim) and help avoid massive boilerplate code. The end goal is to facilitate speedy development of Bayesian neural net models in the case where multiple stacked layers are required.
 
 **Note: This project is currently under a major re-write!**
 
 ## Installation
 ```bash
-pip install bayesian-nn
+pip install bayesian_nn
 ```
 
 ## Usage
@@ -24,11 +24,11 @@ When making predictions, the model takes in account all weight configurations ac
 In addition, the posterior distribution of the weights could be approximated through variational inference, where the evidence/variational lower bound (or negative variational free energy) is optimized so that the KL-divergence between the approximate and true posterior is minimized.
 
 ## Layers
-bayesian-nn primarily provides the user with the flexibility of stacking neural net layers where weights follow an approximate posterior distribution.
+bayesian_nn primarily provides the user with the flexibility of stacking neural net layers where weights follow an approximate posterior distribution.
 <!-- 
 Pre-implemented layers include:
 
-Layer | bayesian-nn
+Layer | bayesian_nn
 ------- | --------
 FullyConnected | [bnn.fully_connected]()
 Conv2d | [bnn.conv2d]()
@@ -41,11 +41,14 @@ Below is a toy example of a 2-layer (excluding input layer) Bayesian neural net 
 x = tf.placeholder(dtype=tf.float32, shape=[None, 1])
 y = tf.placeholder(dtype=tf.float32, shape=[None, 1])
 
-fc_1 = Dense('fc_1', 100, 100, prior=FactorizedGaussian(), posterior=FactorizedGaussian())
-fc_2 = Dense('fc_2', 100, 1, prior=FactorizedGaussian(), posterior=FactorizedGaussian())
+p, q = FactorizedGaussian(isPrior=True), FactorizedGaussian(100, 100)
+fc_1 = Dense('fc_1', 100, 100, prior=p, posterior=q)
 
-h, kl_1 = tf.nn.relu(fc_1(x))
-p, kl_2 = fc_2(h)
+p, q = FactorizedGaussian(isPrior=True), FactorizedGaussian(100, 100)
+fc_2 = Dense('fc_2', 100, 1, prior=p, posterior=q)
+
+h, kl_1 = fc_1(x)
+p, kl_2 = fc_2(tf.nn.relu(h))
 
 elbo = - tf.reduce_sum((y - p) ** 2)  - kl_1 - kl_2               # evidence lower bound
 
@@ -66,9 +69,11 @@ To achieve this we only need specify different distributions.
 
 ```python
 ...
+p, q = GroupHorseShoe(isPrior=True), FactorizedGaussian(100, 100)
+fc_1 = Dense('fc_1', 100, 100, prior=p, posterior=q)
 
-fc_1 = Dense('fc_1', 100, 100, prior=GroupHorseShoe(), posterior=FactorizedGaussian())
-fc_2 = Dense('fc_2', 100, 1, prior=GroupHorseShoe(), posterior=FactorizedGaussian())
+p, q = FactorizedGaussian(isPrior=True), FactorizedGaussian(100, 100)
+fc_2 = Dense('fc_2', 100, 1, prior=p, posterior=q)
 
 h, kl_1 = fc_1(x)
 p, kl_2 = fc_2(tf.nn.relu(h))
