@@ -11,7 +11,7 @@ pip install bayesian_nn
 
 ## Usage
 ```python
-import bayesian_nn as bnn  # yes, it's not a typo, python doesn't support dash for names
+import bayesian_nn as bnn
 ```
 
 ## How are Bayesian neural nets trained with VI?
