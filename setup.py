@@ -1,13 +1,12 @@
 from setuptools import setup
 setup(
-    name='bayesian-nn',
-    packages=['bayesian-nn'],
+    name='bayesian_nn',
+    packages=['bayesian_nn'],
     version='0.1',
     description='A Bayesian neural network library',
     author='Xuechen Li',
     author_email='lxuechen@cs.toronto.edu',
-    url='https://github.com/lxuechen/bayesian-nn',
-    download_url='https://github.com/lxuechen/bayesian-nn/archive/0.1.tar.gz',
+    url='https://github.com/lxuechen/bayesian_nn',
     keywords='machine learning bayesian neural network tensorflow',
     classifiers=['Intended Audience :: Developers',
                  'Intended Audience :: Education',
@@ -17,4 +16,13 @@ setup(
                  'Operating System :: Microsoft :: Windows',
                  'Programming Language :: Python :: 2.7',
                  'Programming Language :: Python :: 3.4'],
+    install_requires=[
+        'PyYAML>=3.11',
+        'sh>=1.11'
+    ],
+    entry_points={
+        'console_scripts': [
+        'encrypt=crytto.main:run'
+        ]
+    }
 )
