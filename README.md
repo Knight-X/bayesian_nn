@@ -21,10 +21,10 @@ Bayesian neural networks are just like ordinary neural networks except that weig
 
 When making predictions, the model takes in account all weight configurations according to its posterior distribution. In practice the expectation could be approximated through Monte Carlo.
 
-In addition, the posterior distribution of the weights could be approximated through variational inference, where the evidence/variational lower bound (or negative variational free energy) is optimized so that the KL-divergence between the approximate and true posterior is minimized.
+In addition, the posterior distribution of the weights could be approximated through variational inference, where the evidence/variational lower bound (or negative variational free energy) is optimized so that the KL-divergence from the approximate to true posterior is minimized.
 
 ## Layers
-bayesian_nn primarily provides the user with the flexibility of stacking neural net layers where weights follow an approximate posterior distribution.
+bayesian_nn primarily provides the user with the flexibility of stacking neural net layers where weights follow an approximate posterior distribution. But layers could degrade to MAP or ordinary point-estimation if no distribution is specified.
 <!-- 
 Pre-implemented layers include:
 
@@ -41,10 +41,10 @@ Below is a toy example of a 2-layer (excluding input layer) Bayesian neural net 
 x = tf.placeholder(dtype=tf.float32, shape=[None, 1])
 y = tf.placeholder(dtype=tf.float32, shape=[None, 1])
 
-p, q = FactorizedGaussian(isPrior=True), FactorizedGaussian(100, 100)
-fc_1 = Dense('fc_1', 100, 100, prior=p, posterior=q)
+p, q = FactorizedGaussian(isPrior=True), FactorizedGaussian([1, 100])
+fc_1 = Dense('fc_1', 1, 100, prior=p, posterior=q)
 
-p, q = FactorizedGaussian(isPrior=True), FactorizedGaussian(100, 100)
+p, q = FactorizedGaussian(isPrior=True), FactorizedGaussian([100, 1])
 fc_2 = Dense('fc_2', 100, 1, prior=p, posterior=q)
 
 h, kl_1 = fc_1(x)
@@ -63,16 +63,17 @@ Gaussian prior and posterior is also referred to as
 [Bayes by Backprop](https://arxiv.org/abs/1505.05424).
 
 Additionally, there is the flexibility to use arbitrary prior and approximate 
-posterior distributions, so long as it is possible to evaluate the density of the prior 
+posterior distributions, so long as it is possible to evaluate the density (or probability mass 
+with discrete models) of the prior 
 as well as the approximate posterior at samples from the latter. 
-To achieve this we only need specify different distributions.
+To achieve this we only need specify different distributions, e.g.:
 
 ```python
 ...
-p, q = GroupHorseShoe(isPrior=True), FactorizedGaussian(100, 100)
-fc_1 = Dense('fc_1', 100, 100, prior=p, posterior=q)
+p, q = GroupHorseShoe(isPrior=True), FactorizedGaussian([1, 100])
+fc_1 = Dense('fc_1', 1, 100, prior=p, posterior=q)
 
-p, q = FactorizedGaussian(isPrior=True), FactorizedGaussian(100, 100)
+p, q = FactorizedGaussian(isPrior=True), FactorizedGaussian([100, 1])
 fc_2 = Dense('fc_2', 100, 1, prior=p, posterior=q)
 
 h, kl_1 = fc_1(x)
