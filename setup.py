@@ -2,7 +2,7 @@ from setuptools import setup
 setup(
     name='bayesian_nn',
     packages=['bayesian_nn'],
-    version='0.1',
+    version='0.1.1',
     description='A Bayesian neural network library',
     author='Xuechen Li',
     author_email='lxuechen@cs.toronto.edu',
@@ -15,10 +15,9 @@ setup(
                  'Operating System :: MacOS :: MacOS X',
                  'Operating System :: Microsoft :: Windows',
                  'Programming Language :: Python :: 2.7',
-                 'Programming Language :: Python :: 3.4'],
+                 'Programming Language :: Python :: 3.5'],
+    license='MIT',
     install_requires=[
-        'PyYAML>=3.11',
-        'sh>=1.11'
     ],
     entry_points={
         'console_scripts': [
